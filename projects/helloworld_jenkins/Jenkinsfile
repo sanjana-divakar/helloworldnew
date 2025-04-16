@@ -18,8 +18,8 @@ pipeline {
             steps {
                 script {
                     bat "cd %APP_PATH% && npm install eslint --save-dev"
-                    // Ensure ESLint doesn't fail the pipeline; use exit 0 fallback
-                    bat "cd %APP_PATH% && npx eslint *.js || exit 0"
+                    // Run ESLint with --fix to automatically fix any issues
+                    bat "cd %APP_PATH% && npx eslint *.js --fix || exit 0"
                 }
             }
         }
@@ -37,8 +37,9 @@ pipeline {
             steps {
                 script {
                     bat '''
-                        docker stop helloworld-container || exit 0
-                        docker rm helloworld-container || exit 0
+                        // Stop and remove the container if it exists
+                        docker ps -a -f name=helloworld-container -q | findstr . && docker stop helloworld-container || exit 0
+                        docker ps -a -f name=helloworld-container -q | findstr . && docker rm helloworld-container || exit 0
                     '''
                     def portInUse = bat(script: 'netstat -an | findstr ":8090 "', returnStdout: true).trim()
                     if (portInUse) {
@@ -54,8 +55,11 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    bat 'docker ps -f name=helloworld-container -q | findstr . && docker container stop helloworld-container || exit 0'
-                    bat 'docker container ls -a -f name=helloworld-container -q | findstr . && docker container rm helloworld-container || exit 0'
+                    bat '''
+                        // Stop and remove the container if it exists
+                        docker ps -a -f name=helloworld-container -q | findstr . && docker stop helloworld-container || exit 0
+                        docker ps -a -f name=helloworld-container -q | findstr . && docker rm helloworld-container || exit 0
+                    '''
                     def portInUse = bat(script: 'netstat -an | findstr ":80 "', returnStdout: true).trim()
                     if (portInUse) {
                         echo 'Port 80 is already in use, using fallback port 8081.'
