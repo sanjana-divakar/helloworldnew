@@ -2,24 +2,26 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'helloworld-app'
-        DOCKER_TAG = 'latest'
-        APP_PATH = 'projects/helloworld_jenkins'
+        DOCKER_IMAGE = 'helloworld-app:latest'
+        CONTAINER_NAME = 'helloworld-container'
+        PORT = '8090'
     }
 
     stages {
-        stage('Checkout') {
+        stage('Declarative: Checkout SCM') {
             steps {
-                git(url: 'https://github.com/sanjana-divakar/helloworldnew.git', branch: 'main')
+                checkout scm
             }
         }
 
         stage('Static Code Analysis') {
             steps {
                 script {
-                    bat "cd %APP_PATH% && npm install eslint --save-dev"
-                    // Run ESLint with --fix to automatically fix any issues
-                    bat "cd %APP_PATH% && npx eslint *.js --fix || exit 0"
+                    // Install ESLint if not already installed
+                    bat 'cd projects/helloworld_jenkins && npm install eslint --save-dev'
+
+                    // Run ESLint with --fix to automatically fix issues
+                    bat 'cd projects/helloworld_jenkins && npx eslint *.js --fix || exit 0'
                 }
             }
         }
@@ -27,8 +29,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build from the actual app path where the Dockerfile is located
-                    bat "docker build -t %DOCKER_IMAGE%:%DOCKER_TAG% %APP_PATH%"
+                    // Build the Docker image
+                    bat 'docker build -t ${DOCKER_IMAGE} projects/helloworld_jenkins'
                 }
             }
         }
@@ -36,36 +38,33 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    // Stop and remove the container if it exists (corrected comment style)
-                    bat 'REM Stop and remove the container if it exists'
-                    bat 'docker ps -a -f name=helloworld-container -q | findstr . && docker stop helloworld-container || exit 0'
-                    bat 'docker ps -a -f name=helloworld-container -q | findstr . && docker rm helloworld-container || exit 0'
+                    // Ensure any previous container is stopped and removed
+                    bat 'docker ps -a -f name=${CONTAINER_NAME} -q | findstr . && docker stop ${CONTAINER_NAME} || exit 0'
+                    bat 'docker ps -a -f name=${CONTAINER_NAME} -q | findstr . && docker rm ${CONTAINER_NAME} || exit 0'
 
-                    def portInUse = bat(script: 'netstat -an | findstr ":8090 "', returnStdout: true).trim()
-                    if (portInUse) {
-                        echo 'Port 8090 is already in use, using fallback port 8091.'
-                        bat "docker run -d -p 8091:80 --name helloworld-container %DOCKER_IMAGE%:%DOCKER_TAG%"
-                    } else {
-                        bat "docker run -d -p 8090:80 --name helloworld-container %DOCKER_IMAGE%:%DOCKER_TAG%"
-                    }
+                    // Run the container in the background
+                    bat "docker run --name ${CONTAINER_NAME} -d -p ${PORT}:${PORT} ${DOCKER_IMAGE}"
+
+                    // Check if the container is running and test the app
+                    bat "curl -f http://localhost:${PORT} || exit 0"
+
+                    // Run tests inside the container if necessary (replace 'npm test' with your actual test command)
+                    bat "docker exec ${CONTAINER_NAME} npm test || exit 0"
                 }
             }
         }
 
         stage('Deploy') {
+            when {
+                expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+            }
             steps {
                 script {
-                    bat 'REM Stop and remove the container if it exists (corrected comment style)'
-                    bat 'docker ps -a -f name=helloworld-container -q | findstr . && docker stop helloworld-container || exit 0'
-                    bat 'docker ps -a -f name=helloworld-container -q | findstr . && docker rm helloworld-container || exit 0'
+                    // Check if the container is running and accessible
+                    bat "docker ps -a -f name=${CONTAINER_NAME} -q | findstr . && docker start ${CONTAINER_NAME} || docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE}"
 
-                    def portInUse = bat(script: 'netstat -an | findstr ":80 "', returnStdout: true).trim()
-                    if (portInUse) {
-                        echo 'Port 80 is already in use, using fallback port 8081.'
-                        bat "docker run -d -p 8081:80 --name helloworld-container %DOCKER_IMAGE%:%DOCKER_TAG%"
-                    } else {
-                        bat "docker run -d -p 80:80 --name helloworld-container %DOCKER_IMAGE%:%DOCKER_TAG%"
-                    }
+                    // Verify the app is running on the specified port
+                    bat "curl -f http://localhost:${PORT} || exit 0"
                 }
             }
         }
@@ -75,11 +74,8 @@ pipeline {
         always {
             cleanWs()
         }
-        success {
-            echo 'Pipeline completed successfully!'
-        }
         failure {
-            echo 'Pipeline failed!'
+            echo "Pipeline failed!"
         }
     }
 }
