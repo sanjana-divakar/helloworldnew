@@ -29,8 +29,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build the Docker image
-                    bat 'docker build -t ${DOCKER_IMAGE} projects/helloworld_jenkins'
+                    // Build the Docker image using %DOCKER_IMAGE% instead of ${DOCKER_IMAGE}
+                    bat 'docker build -t %DOCKER_IMAGE% projects/helloworld_jenkins'
                 }
             }
         }
@@ -39,17 +39,17 @@ pipeline {
             steps {
                 script {
                     // Ensure any previous container is stopped and removed
-                    bat 'docker ps -a -f name=${CONTAINER_NAME} -q | findstr . && docker stop ${CONTAINER_NAME} || exit 0'
-                    bat 'docker ps -a -f name=${CONTAINER_NAME} -q | findstr . && docker rm ${CONTAINER_NAME} || exit 0'
+                    bat 'docker ps -a -f name=%CONTAINER_NAME% -q | findstr . && docker stop %CONTAINER_NAME% || exit 0'
+                    bat 'docker ps -a -f name=%CONTAINER_NAME% -q | findstr . && docker rm %CONTAINER_NAME% || exit 0'
 
                     // Run the container in the background
-                    bat "docker run --name ${CONTAINER_NAME} -d -p ${PORT}:${PORT} ${DOCKER_IMAGE}"
+                    bat "docker run --name %CONTAINER_NAME% -d -p %PORT%:%PORT% %DOCKER_IMAGE%"
 
                     // Check if the container is running and test the app
-                    bat "curl -f http://localhost:${PORT} || exit 0"
+                    bat "curl -f http://localhost:%PORT% || exit 0"
 
                     // Run tests inside the container if necessary (replace 'npm test' with your actual test command)
-                    bat "docker exec ${CONTAINER_NAME} npm test || exit 0"
+                    bat "docker exec %CONTAINER_NAME% npm test || exit 0"
                 }
             }
         }
@@ -61,10 +61,10 @@ pipeline {
             steps {
                 script {
                     // Check if the container is running and accessible
-                    bat "docker ps -a -f name=${CONTAINER_NAME} -q | findstr . && docker start ${CONTAINER_NAME} || docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE}"
+                    bat "docker ps -a -f name=%CONTAINER_NAME% -q | findstr . && docker start %CONTAINER_NAME% || docker run -d --name %CONTAINER_NAME% -p %PORT%:%PORT% %DOCKER_IMAGE%"
 
                     // Verify the app is running on the specified port
-                    bat "curl -f http://localhost:${PORT} || exit 0"
+                    bat "curl -f http://localhost:%PORT% || exit 0"
                 }
             }
         }
