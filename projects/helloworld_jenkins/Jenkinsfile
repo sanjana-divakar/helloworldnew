@@ -36,11 +36,11 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    bat '''
-                        // Stop and remove the container if it exists
-                        docker ps -a -f name=helloworld-container -q | findstr . && docker stop helloworld-container || exit 0
-                        docker ps -a -f name=helloworld-container -q | findstr . && docker rm helloworld-container || exit 0
-                    '''
+                    // Stop and remove the container if it exists (corrected comment style)
+                    bat 'REM Stop and remove the container if it exists'
+                    bat 'docker ps -a -f name=helloworld-container -q | findstr . && docker stop helloworld-container || exit 0'
+                    bat 'docker ps -a -f name=helloworld-container -q | findstr . && docker rm helloworld-container || exit 0'
+
                     def portInUse = bat(script: 'netstat -an | findstr ":8090 "', returnStdout: true).trim()
                     if (portInUse) {
                         echo 'Port 8090 is already in use, using fallback port 8091.'
@@ -55,11 +55,10 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    bat '''
-                        // Stop and remove the container if it exists
-                        docker ps -a -f name=helloworld-container -q | findstr . && docker stop helloworld-container || exit 0
-                        docker ps -a -f name=helloworld-container -q | findstr . && docker rm helloworld-container || exit 0
-                    '''
+                    bat 'REM Stop and remove the container if it exists (corrected comment style)'
+                    bat 'docker ps -a -f name=helloworld-container -q | findstr . && docker stop helloworld-container || exit 0'
+                    bat 'docker ps -a -f name=helloworld-container -q | findstr . && docker rm helloworld-container || exit 0'
+
                     def portInUse = bat(script: 'netstat -an | findstr ":80 "', returnStdout: true).trim()
                     if (portInUse) {
                         echo 'Port 80 is already in use, using fallback port 8081.'
