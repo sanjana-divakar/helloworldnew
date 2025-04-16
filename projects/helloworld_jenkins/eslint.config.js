@@ -1,9 +1,14 @@
 export default [
     {
-      files: ["*.js"],
+      files: ['*.js'],
+      languageOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
       rules: {
-        semi: "error",
-        quotes: ["error", "double"],
+        semi: ['error', 'always'],
+        quotes: ['error', 'single'],
+        indent: ['error', 2],
       },
     },
   ];

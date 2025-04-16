@@ -4,6 +4,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'helloworld-app'
         DOCKER_TAG = 'latest'
+        APP_PATH = 'projects/helloworld_jenkins'
     }
 
     stages {
@@ -16,9 +17,9 @@ pipeline {
         stage('Static Code Analysis') {
             steps {
                 script {
-                    def appPath = 'projects/helloworld_jenkins'
-                    bat "cd ${appPath} && npm install eslint --save-dev"
-                    bat "cd ${appPath} && npx eslint *.js || exit 0"
+                    bat "cd %APP_PATH% && npm install eslint --save-dev"
+                    // Ensure ESLint doesn't fail the pipeline; use exit 0 fallback
+                    bat "cd %APP_PATH% && npx eslint *.js || exit 0"
                 }
             }
         }
@@ -26,8 +27,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    def appPath = 'projects/helloworld_jenkins'
-                    bat "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ${appPath}"
+                    // Build from the actual app path where the Dockerfile is located
+                    bat "docker build -t %DOCKER_IMAGE%:%DOCKER_TAG% %APP_PATH%"
                 }
             }
         }
@@ -39,12 +40,12 @@ pipeline {
                         docker stop helloworld-container || exit 0
                         docker rm helloworld-container || exit 0
                     '''
-                    def portInUse = bat(script: 'netstat -an | findstr 8090', returnStdout: true).trim()
+                    def portInUse = bat(script: 'netstat -an | findstr ":8090 "', returnStdout: true).trim()
                     if (portInUse) {
                         echo 'Port 8090 is already in use, using fallback port 8091.'
-                        bat "docker run -d -p 8091:80 --name helloworld-container ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                        bat "docker run -d -p 8091:80 --name helloworld-container %DOCKER_IMAGE%:%DOCKER_TAG%"
                     } else {
-                        bat "docker run -d -p 8090:80 --name helloworld-container ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                        bat "docker run -d -p 8090:80 --name helloworld-container %DOCKER_IMAGE%:%DOCKER_TAG%"
                     }
                 }
             }
@@ -58,9 +59,9 @@ pipeline {
                     def portInUse = bat(script: 'netstat -an | findstr ":80 "', returnStdout: true).trim()
                     if (portInUse) {
                         echo 'Port 80 is already in use, using fallback port 8081.'
-                        bat "docker run -d -p 8081:80 --name helloworld-container ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                        bat "docker run -d -p 8081:80 --name helloworld-container %DOCKER_IMAGE%:%DOCKER_TAG%"
                     } else {
-                        bat "docker run -d -p 80:80 --name helloworld-container ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                        bat "docker run -d -p 80:80 --name helloworld-container %DOCKER_IMAGE%:%DOCKER_TAG%"
                     }
                 }
             }
