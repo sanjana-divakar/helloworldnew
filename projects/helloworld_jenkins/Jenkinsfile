@@ -10,15 +10,15 @@ pipeline {
         stage('Checkout') {
             steps {
                 // Get code from GitHub repository
-                checkout scm
+                git(url: 'https://github.com/sanjana-divakar/helloworldnew.git', branch: 'main')
             }
         }
         
         stage('Static Code Analysis') {
             steps {
                 // Run static code analysis using ESLint
-                sh 'npm install eslint --save-dev'
-                sh 'npx eslint *.js || true'
+                bat 'npm install eslint --save-dev'
+                bat 'npx eslint *.js || exit 0'
             }
         }
         
@@ -26,7 +26,7 @@ pipeline {
             steps {
                 script {
                     // Build the Docker image
-                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                    bat "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
                 }
             }
         }
@@ -34,10 +34,22 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    // Run the container for testing
-                    docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").withRun('-p 8080:80') { c ->
-                        // Add your test commands here
-                        sh 'curl http://localhost:8080 || true'
+                    // Stop and remove existing container if any
+                    bat '''docker stop helloworld-container || exit 0
+                          docker rm helloworld-container || exit 0
+                    '''
+                   
+                    // Check if port 8090 is in use
+                    def portInUse = bat(script: 'netstat -an | findstr 8090', returnStdout: true).trim()
+                   
+                    if (portInUse) {
+                        echo 'Port 8090 is already in use, attempting to run on a different port.'
+                        // Optionally, you can dynamically change the port or set a fallback port
+                        def fallbackPort = 8091
+                        bat "docker run -d -p ${fallbackPort}:80 --name helloworld-container ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    } else {
+                        // Run on port 8090 if available
+                        bat "docker run -d -p 8090:80 --name helloworld-container ${DOCKER_IMAGE}:${DOCKER_TAG}"
                     }
                 }
             }
@@ -47,11 +59,21 @@ pipeline {
             steps {
                 script {
                     // Stop existing container if running
-                    sh 'docker ps -f name=helloworld-container -q | xargs --no-run-if-empty docker container stop'
-                    sh 'docker container ls -a -fname=helloworld-container -q | xargs -r docker container rm'
+                    bat 'docker ps -f name=helloworld-container -q | findstr . && docker container stop helloworld-container'
+                    bat 'docker container ls -a -f name=helloworld-container -q | findstr . && docker container rm helloworld-container'
                     
-                    // Run new container
-                    docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").run('-p 80:80 --name helloworld-container -d')
+                    // Check if port 80 is in use
+                    def portInUse = bat(script: 'netstat -an | findstr 80', returnStdout: true).trim()
+                   
+                    if (portInUse) {
+                        echo 'Port 80 is already in use, attempting to run on a different port.'
+                        // Optionally, you can dynamically change the port or set a fallback port
+                        def fallbackPort = 8081
+                        bat "docker run -d -p ${fallbackPort}:80 --name helloworld-container ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    } else {
+                        // Run on port 80 if available
+                        bat "docker run -d -p 80:80 --name helloworld-container ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    }
                 }
             }
         }
