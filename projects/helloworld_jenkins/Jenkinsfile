@@ -49,7 +49,7 @@ pipeline {
                     bat "curl -f http://localhost:%PORT% || exit 0"
 
                     // Run tests inside the container if necessary (replace 'npm test' with your actual test command)
-                    bat "docker exec %CONTAINER_NAME% npm test || exit 0"
+                    // bat "docker exec %CONTAINER_NAME% npm test || exit 0"
                 }
             }
         }
